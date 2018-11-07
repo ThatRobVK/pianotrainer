@@ -9,7 +9,11 @@
         Title="MainWindow" Height="450" Width="800">
     <Grid>
         <ComboBox Name="InputDeviceCombo" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="155"/>
-        <Button Name="StartGameButton" Content="Start game" HorizontalAlignment="Left" Margin="170,10,0,0" VerticalAlignment="Top" Width="75" Click="StartGameButton_Click"/>
+        <Button Name="StartGameButton" Content="Start game" HorizontalAlignment="Left" Margin="481,12,0,0" VerticalAlignment="Top" Width="75" Click="StartGameButton_Click"/>
         <ManufakturaControls:NoteViewer x:Name="GameViewer" Margin="43,84,123.2,58.8" />
+        <ComboBox x:Name="HandCombo" HorizontalAlignment="Left" Margin="189,10,0,0" VerticalAlignment="Top" Width="120"/>
+        <CheckBox x:Name="SharpsCheckbox" Content="Sharps" HorizontalAlignment="Left" Margin="329,15,0,0" VerticalAlignment="Top"/>
+        <CheckBox x:Name="FlatsCheckbox" Content="Flats" HorizontalAlignment="Left" Margin="407,15,0,0" VerticalAlignment="Top"/>
+        <Button x:Name="StopGameButton" Content="Stop game" HorizontalAlignment="Left" Margin="580,12,0,0" VerticalAlignment="Top" Width="75" IsEnabled="False" Click="StopGameButton_Click"/>
     </Grid>
 </Window>

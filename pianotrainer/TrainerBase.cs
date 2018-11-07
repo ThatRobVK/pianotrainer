@@ -15,6 +15,8 @@ namespace pianotrainer
         internal Pitch minimumPitch = Pitch.A0;
         internal Pitch maximumPitch = Pitch.C7;
         internal GameState gameState = GameState.Stopped;
+        protected GameConfiguration GameConfiguration;
+
 
         /// <summary>
         /// Creates a new game.
@@ -51,7 +53,16 @@ namespace pianotrainer
         /// <summary>
         /// Starts the game.
         /// </summary>
-        virtual public void Start()
+        virtual public void Start(GameConfiguration gameConfiguration)
+        {
+            this.GameConfiguration = gameConfiguration;
+            timer.Start();
+        }
+
+        /// <summary>
+        /// Starts the timer to resume the game
+        /// </summary>
+        virtual public void Resume()
         {
             timer.Start();
         }

@@ -15,7 +15,8 @@ namespace pianotrainer
         private KeyboardState keyboardState = null;
         private KeyboardController keyboardController = null;
         private NoteTrainer game = null;
-        private Score score = null;
+        private Score musicScore = null;
+        private GameConfiguration gameConfiguration = null;
 
         public MainWindow()
         {
@@ -25,15 +26,14 @@ namespace pianotrainer
             keyboardController = new KeyboardController(keyboardState);
             game = new NoteTrainer(keyboardController, keyboardState);
             game.ViewModelChangedEvent += Game_ViewModelChangedEvent;
-            foreach (string device in keyboardController.MidiDevices)
-            {
-                InputDeviceCombo.Items.Add(device);
-            }
+            InputDeviceCombo.ItemsSource = keyboardController.MidiDevices;
+            HandCombo.ItemsSource = new string[] { Hands.Left.ToString(), Hands.Right.ToString(), Hands.Both.ToString() };
+            HandCombo.SelectedIndex = 0;
 
-            score = Score.CreateOneStaffScore(Clef.Treble, MajorScale.C);
-            score.AddStaff(Clef.Bass, TimeSignature.CommonTime, Step.C, MajorAndMinorScaleFlags.MajorFlat);
+            musicScore = Score.CreateOneStaffScore(Clef.Treble, MajorScale.C);
+            musicScore.AddStaff(Clef.Bass, TimeSignature.CommonTime, Step.C, MajorAndMinorScaleFlags.MajorFlat);
 
-            GameViewer.ScoreSource = score;
+            GameViewer.ScoreSource = musicScore;
         }
 
         private void Game_ViewModelChangedEvent(object sender, NoteTrainerViewModel trainerViewModel)
@@ -44,7 +44,17 @@ namespace pianotrainer
         private void StartGameButton_Click(object sender, RoutedEventArgs e)
         {
             keyboardController.OpenDevice(InputDeviceCombo.SelectedValue.ToString());
-            game.Start();
+            var gameConfiguration = new GameConfiguration
+            {
+                Hands = (Hands)HandCombo.SelectedIndex,
+                Flats = FlatsCheckbox.IsChecked.GetValueOrDefault(true),
+                Sharps = SharpsCheckbox.IsChecked.GetValueOrDefault(true)
+            };
+            this.gameConfiguration = gameConfiguration;
+
+            game.Start(gameConfiguration);
+
+            FlipForm();
         }
 
         ~MainWindow()
@@ -54,20 +64,23 @@ namespace pianotrainer
 
         internal void UpdateDisplay(NoteTrainerViewModel trainerViewModel)
         {
-            while(score.FirstStaff.Elements.Count > 2)
+            ClearMusicScore();
+
+            var translationMode = Pitch.MidiPitchTranslationMode.Auto;
+            if (gameConfiguration.Flats && !gameConfiguration.Sharps)
             {
-                score.FirstStaff.Elements.RemoveAt(2);
+                translationMode = Pitch.MidiPitchTranslationMode.Flats;
             }
-            while (score.SecondStaff.Elements.Count > 2)
+            else if (gameConfiguration.Sharps && !gameConfiguration.Flats)
             {
-                score.SecondStaff.Elements.RemoveAt(2);
+                translationMode = Pitch.MidiPitchTranslationMode.Sharps;
             }
 
             foreach (var displayNote in trainerViewModel.DisplayNotes)
             {
-                var staff = (displayNote.MidiPitch >= Midi.Pitch.C4) ? score.FirstStaff : score.SecondStaff;
+                var staff = (displayNote.MidiPitch >= Midi.Pitch.C4) ? musicScore.FirstStaff : musicScore.SecondStaff;
 
-                var scoreNote = new Note(Pitch.FromMidiPitch((int)displayNote.MidiPitch, Pitch.MidiPitchTranslationMode.Auto), RhythmicDuration.Quarter) { IsUpperMemberOfChord = (staff.Elements.Count > 2) };
+                var scoreNote = new Note(Pitch.FromMidiPitch((int)displayNote.MidiPitch, translationMode), RhythmicDuration.Quarter) { IsUpperMemberOfChord = (staff.Elements.Count > 2) };
                 switch (displayNote.State)
                 {
                     case DisplayNoteState.Correct:
@@ -80,14 +93,58 @@ namespace pianotrainer
                 staff.Add(scoreNote);
             }
 
-            if (score.FirstStaff.Elements.Count == 2)
+            if (musicScore.FirstStaff.Elements.Count == 2)
             {
-                score.FirstStaff.Elements.Add(new Rest(RhythmicDuration.Quarter));
+                musicScore.FirstStaff.Elements.Add(new Rest(RhythmicDuration.Quarter));
             }
-            if (score.SecondStaff.Elements.Count == 2)
+            if (musicScore.SecondStaff.Elements.Count == 2)
             {
-                score.SecondStaff.Elements.Add(new Rest(RhythmicDuration.Quarter));
+                musicScore.SecondStaff.Elements.Add(new Rest(RhythmicDuration.Quarter));
             }
         }
+
+        private void ClearMusicScore()
+        {
+            while (musicScore.FirstStaff.Elements.Count > 2)
+            {
+                musicScore.FirstStaff.Elements.RemoveAt(2);
+            }
+            while (musicScore.SecondStaff.Elements.Count > 2)
+            {
+                musicScore.SecondStaff.Elements.RemoveAt(2);
+            }
+        }
+
+        private void StopGameButton_Click(object sender, RoutedEventArgs e)
+        {
+            game.Stop();
+            keyboardController.CloseDevice();
+            ClearMusicScore();
+            FlipForm();
+        }
+
+        private void FlipForm()
+        {
+            InputDeviceCombo.IsEnabled = !InputDeviceCombo.IsEnabled;
+            HandCombo.IsEnabled = !HandCombo.IsEnabled;
+            FlatsCheckbox.IsEnabled = !FlatsCheckbox.IsEnabled;
+            SharpsCheckbox.IsEnabled = !SharpsCheckbox.IsEnabled;
+            StartGameButton.IsEnabled = !StartGameButton.IsEnabled;
+            StopGameButton.IsEnabled = !StopGameButton.IsEnabled;
+        }
+    }
+
+    internal class GameConfiguration
+    {
+        internal Hands Hands { get; set; }
+        internal bool Sharps { get; set; }
+        internal bool Flats { get; set; }
+    }
+
+    internal enum Hands
+    {
+        Left = 0,
+        Right = 1,
+        Both = 2
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Timers;
 using Midi;
 
@@ -6,20 +7,39 @@ namespace pianotrainer
 {
     class NoteTrainer : TrainerBase
     {
-        Pitch chosenPitch = 0;
+        private Pitch chosenPitch = 0;
         public delegate void ViewModelChangedHandler(object sender, NoteTrainerViewModel trainerViewModel);
         public event ViewModelChangedHandler ViewModelChangedEvent;
+        private const Pitch LeftHandMinPitch = Pitch.B1;
+        private const Pitch LeftHandMaxPitch = Pitch.C4;
+        private const Pitch RightHandMinPitch = Pitch.C4;
+        private const Pitch RightHandMaxPitch = Pitch.D6;
+        private List<int> SharpOctavePositions = new List<int> { 1, 3, 6, 8, 10 };
 
         public NoteTrainer(KeyboardController controller, KeyboardState keyboardState) : base(500, controller, keyboardState)
-        {
-            minimumPitch = Pitch.B1;
-            maximumPitch = Pitch.D6;
-        }
+        { }
 
-        public override void Start()
+        public override void Start(GameConfiguration gameConfiguration)
         {
+            switch (gameConfiguration.Hands)
+            {
+                case Hands.Both:
+                    minimumPitch = LeftHandMinPitch;
+                    maximumPitch = RightHandMaxPitch;
+                    break;
+                case Hands.Left:
+                    minimumPitch = LeftHandMinPitch;
+                    maximumPitch = LeftHandMaxPitch;
+                    break;
+                case Hands.Right:
+                    minimumPitch = RightHandMinPitch;
+                    maximumPitch = RightHandMaxPitch;
+                    break;
+            }
+
+            base.Start(gameConfiguration);
+
             PickNextNote();
-            base.Start();
         }
 
         public override void Stop()
@@ -50,13 +70,22 @@ namespace pianotrainer
             base.Stop();
 
             chosenPitch = (new Random().Next(maximumPitch - minimumPitch)) + minimumPitch;
+
+            // If flats and sharps are disabled, and the chosen pitch is either, drop it by 1 to the nearest natural
+            if (!GameConfiguration.Sharps && !GameConfiguration.Flats)
+            {
+                var position = chosenPitch.PositionInOctave();
+                if (SharpOctavePositions.Contains(position))
+                    chosenPitch--;
+            }
+
             var viewModel = new NoteTrainerViewModel();
             viewModel.DisplayNotes.Add(new DisplayNote { MidiPitch = chosenPitch, State = DisplayNoteState.Neutral });
             ViewModelChangedEvent?.Invoke(this, viewModel);
 
             gameState = GameState.WaitingForInput;
 
-            base.Start();
+            base.Resume();
         }
 
         private void CheckPressedKeys()
